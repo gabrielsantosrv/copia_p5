@@ -1,0 +1,33 @@
+0000000000000000000000000000000000000000 f9fafb1bfc3302968370f814c208962dc2faf252 Gabriel <gabriel@gmail.com> 1606530071 -0300	clone: from https://github.com/MC921-2s20/p5-codegen-grupo-top.git
+f9fafb1bfc3302968370f814c208962dc2faf252 3e12f383ff63d1afc37939ba779a7e1878c2424d Gabriel <gabriel@gmail.com> 1606536995 -0300	commit: Basic teste passing
+3e12f383ff63d1afc37939ba779a7e1878c2424d 3c1d5740cbd40929c73c549412fa4276161530b0 Gabriel <gabriel@gmail.com> 1606574870 -0300	pull: Fast-forward
+3c1d5740cbd40929c73c549412fa4276161530b0 6c9f3f9cc171971109db1d67a13ed9d0ab77e7e9 Gabriel <gabriel@gmail.com> 1606577075 -0300	commit: BinaryOp fix
+6c9f3f9cc171971109db1d67a13ed9d0ab77e7e9 999ec6ae29f77fb57e466d19f1af6e03b1d3bc99 Gabriel <gabriel@gmail.com> 1606586347 -0300	commit: IF statement
+999ec6ae29f77fb57e466d19f1af6e03b1d3bc99 ef6e831c037a4e1505a61107e7046afd1cf8707b Gabriel <gabriel@gmail.com> 1606586363 -0300	pull: Merge made by the 'recursive' strategy.
+ef6e831c037a4e1505a61107e7046afd1cf8707b 0148fedd7681660ebd83491832e85cbe42c7e53c Gabriel <gabriel@gmail.com> 1606588150 -0300	commit: Assert
+0148fedd7681660ebd83491832e85cbe42c7e53c 22fa8b0f36b8fcda11080eddf06320fca8f2ed77 Gabriel <gabriel@gmail.com> 1606588167 -0300	pull: Merge made by the 'recursive' strategy.
+22fa8b0f36b8fcda11080eddf06320fca8f2ed77 6f268e15aaa81fc5e7240eff92c951fa6bd468d7 Gabriel <gabriel@gmail.com> 1606588475 -0300	commit: AST - adding cfg atribute into assert
+6f268e15aaa81fc5e7240eff92c951fa6bd468d7 8410727273d0287dd5faba6f4b3abc184e24b5ec Gabriel <gabriel@gmail.com> 1606601221 -0300	commit: VarDecl
+8410727273d0287dd5faba6f4b3abc184e24b5ec 6d3be3d51498169bc106bc499f8ae3d3b24cb127 Gabriel <gabriel@gmail.com> 1606601324 -0300	commit (merge): merge
+6d3be3d51498169bc106bc499f8ae3d3b24cb127 a81853245220b8d54da017f07d3e154cc84c27f0 Gabriel <gabriel@gmail.com> 1606610345 -0300	commit: alterações - exemplo notebook
+a81853245220b8d54da017f07d3e154cc84c27f0 e728c289fd1931b0c22ee3530f0a6702d9a2c2a0 Gabriel <gabriel@gmail.com> 1606610929 -0300	commit: notebook exemple passing
+e728c289fd1931b0c22ee3530f0a6702d9a2c2a0 425a84ada9221935f71a54e285ea0bcd7bc20322 Gabriel <gabriel@gmail.com> 1606617222 -0300	commit: For loop
+425a84ada9221935f71a54e285ea0bcd7bc20322 714baebf3ded0735fd7f2e6f1e91392fa2367dad Gabriel <gabriel@gmail.com> 1606617292 -0300	commit (merge): conflic solving
+714baebf3ded0735fd7f2e6f1e91392fa2367dad 598ea524123b88b337fd4c2404ae9b7377fe8c07 Gabriel <gabriel@gmail.com> 1606620062 -0300	commit: teste 13
+598ea524123b88b337fd4c2404ae9b7377fe8c07 40e07fa0d7aa4adb1d6545520b57c70b80a5d62a Gabriel <gabriel@gmail.com> 1606620334 -0300	commit (merge): conflict solived
+40e07fa0d7aa4adb1d6545520b57c70b80a5d62a 5d35e894b3a15119a5fd77a99d4fbb97575c79a2 Gabriel <gabriel@gmail.com> 1606624169 -0300	commit: alterações - gabriel
+5d35e894b3a15119a5fd77a99d4fbb97575c79a2 fb79da3a0d0c1a8abbd2ed48665b6bf3c42ff2dc Gabriel <gabriel@gmail.com> 1606624180 -0300	pull: Merge made by the 'recursive' strategy.
+fb79da3a0d0c1a8abbd2ed48665b6bf3c42ff2dc 1003221efb9b5530fd0aecdc05aeb391502df4d9 Gabriel <gabriel@gmail.com> 1606666608 -0300	pull: Fast-forward
+1003221efb9b5530fd0aecdc05aeb391502df4d9 b4ae3eb417c1a7770ef81a34ca91b3c86a00d50b Gabriel <gabriel@gmail.com> 1606671363 -0300	commit: arrayRef
+b4ae3eb417c1a7770ef81a34ca91b3c86a00d50b e910900140764c7a47916c8410b674d012576d83 Gabriel <gabriel@gmail.com> 1606671384 -0300	pull: Merge made by the 'recursive' strategy.
+e910900140764c7a47916c8410b674d012576d83 3c24a4dfdee7ebebd824094af819fb62c9c36e2b Gabriel <gabriel@gmail.com> 1606672997 -0300	commit: alteração get_gen_location
+3c24a4dfdee7ebebd824094af819fb62c9c36e2b 406ae9911c2f1295a25ed41c02c58f84917d42ae Gabriel <gabriel@gmail.com> 1606674978 -0300	commit: 13 tests passing
+406ae9911c2f1295a25ed41c02c58f84917d42ae dc4b7cd06bd630dd31cc11128757cadc6c7d38eb Gabriel <gabriel@gmail.com> 1606686605 -0300	commit: tratando o caso de matrizes
+dc4b7cd06bd630dd31cc11128757cadc6c7d38eb a9c71912acfe156c9bcfe7c6d8231dca3786d41b Gabriel <gabriel@gmail.com> 1606686719 -0300	pull: Merge made by the 'recursive' strategy.
+a9c71912acfe156c9bcfe7c6d8231dca3786d41b eb8f89f2d4ae8e320a43af024b5764ab4001f0d7 Gabriel <gabriel@gmail.com> 1606692373 -0300	commit: teste t14 passando
+eb8f89f2d4ae8e320a43af024b5764ab4001f0d7 44f2c685e7b488a3ba8fe002800a1c1d26562848 Gabriel <gabriel@gmail.com> 1606693301 -0300	commit: teste t22 passando
+44f2c685e7b488a3ba8fe002800a1c1d26562848 c70f1dbb8482f12617d5b6e3d865eeb5bd429290 Gabriel <gabriel@gmail.com> 1606704006 -0300	commit: 18 testes passando
+c70f1dbb8482f12617d5b6e3d865eeb5bd429290 c06cf7a79fe573748fed36485f507db914700777 Gabriel <gabriel@gmail.com> 1606711939 -0300	commit: 19 testes passando
+c06cf7a79fe573748fed36485f507db914700777 978afb05b3d75e3dcec72219c5786cc952695807 Gabriel <gabriel@gmail.com> 1606762906 -0300	commit: 21 testes passando
+978afb05b3d75e3dcec72219c5786cc952695807 9c801dd5928389fc75426e1faabca162ea76d9b7 Gabriel <gabriel@gmail.com> 1606766025 -0300	commit: 22 testes passando
+9c801dd5928389fc75426e1faabca162ea76d9b7 b69509d4e8c85bfc14266443fd52ba8e6fa4abd2 Gabriel <gabriel@gmail.com> 1606771462 -0300	commit: todos os testes passando
