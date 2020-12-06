@@ -325,16 +325,6 @@ class CodeGenerator(NodeVisitor):
         if return_type == "void":
             inst = ("return_void",)
             self.current_block.append(inst)
-        # else:
-        #     for stmt in node.compound_statement.statement_opt_list:
-        #         if isinstance(stmt, Return):
-        #             inst = ("return_{}".format(return_type), stmt.expression.gen_location)
-        #             self.current_block.append(inst)
-        #         elif isinstance(stmt, If):
-        #             self.send_func_return_instruction(stmt.statement_if, return_type)
-        #             self.send_func_return_instruction(stmt.statement_else, return_type)
-        #         elif isinstance(stmt, For) or isinstance(stmt, While):
-        #             self.send_func_return_instruction(stmt.statement, return_type)
 
         for inst in self.current_block:
             func_block.append(inst)
@@ -456,15 +446,6 @@ class CodeGenerator(NodeVisitor):
             #store a map from name to register
             self.local_declaration_map[arg[2]] = arg[1]
 
-        # for arg in args_full_info:
-        #     new_target = self.new_temp()
-        #     arg_type = arg[0]
-        #     arg_name = arg[2]
-        #
-        #     inst = ("load_{}".format(arg_type), "%{}".format(arg_name), new_target)
-        #     self.current_block.append(inst)
-        #     self.gen_location_map[arg_name] = (new_target, arg_type)
-        #     self.current_func_args_map[arg_name] = arg_name
 
     def visit_DeclList(self, node):
         if node.declaration_list is not None:
