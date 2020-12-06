@@ -307,6 +307,7 @@ class CodeGenerator(NodeVisitor):
 
     def visit_FuncDef(self, node):
         func_block = BasicBlock(node.declarator.name.name)
+        self.current_block = func_block
         self.current_func_name = node.declarator.name.name
 
         self.visit(node.declarator)
@@ -326,13 +327,11 @@ class CodeGenerator(NodeVisitor):
             inst = ("return_void",)
             self.current_block.append(inst)
 
-        for inst in self.current_block:
-            func_block.append(inst)
         node.cfg = func_block
 
         self.versions = {self.fname: 0}
         self.current_func_args_map = {}
-        self.current_block = []
+
 
     def visit_ParamList(self, node):
         for param in node.parameter_list:
@@ -483,9 +482,17 @@ class CodeGenerator(NodeVisitor):
         if node.declaration is not None:
             self.visit(node.declaration)
 
+        current_block = self.current_block
+
         begin_label = self.new_temp()
         body_label = self.new_temp()
         end_label = self.new_temp()
+
+        cond_block = ConditionBlock(begin_label)
+        body_block = BasicBlock(body_label)
+        end_block = BasicBlock(end_label)
+
+        self.current_block = cond_block
         self.current_block.append((begin_label[1:]+":", ))
 
         if node.expression_opt_cond is not None:
@@ -504,6 +511,13 @@ class CodeGenerator(NodeVisitor):
         self.current_block.append((end_label[1:] + ":",))
         if len(self.loops_stack) > 0:
             self.loops_stack.pop()
+
+        cond_block.taken = body_block
+        cond_block.fall_through = end_block
+        body_block.next_block = cond_block
+
+        self.current_block = current_block
+        self.current_block.next_block = cond_block
 
     def visit_While(self, node):
         begin_label = self.new_temp()
