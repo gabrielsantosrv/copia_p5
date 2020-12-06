@@ -288,7 +288,7 @@ class CodeGenerator(NodeVisitor):
         if self.viewcfg:  # evaluate to True if -cfg flag is present in command line
             for _decl in node.gdecls:
                 if isinstance(_decl, FuncDef):
-                    dot = CFG(_decl.decl.name.name)
+                    dot = CFG(_decl.declarator.name.name)
                     dot.view(_decl.cfg)  # _decl.cfg contains the CFG for the function
 
         # for code in self.code:
