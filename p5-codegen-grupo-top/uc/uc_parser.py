@@ -7,7 +7,6 @@ from uc.uc_ast import (
     ArrayDecl,
     ArrayRef,
     Assert,
-    ExprList,
     Assignment,
     BinaryOp,
     Break,
@@ -17,6 +16,7 @@ from uc.uc_ast import (
     Decl,
     DeclList,
     EmptyStatement,
+    ExprList,
     For,
     FuncCall,
     FuncDecl,
@@ -27,12 +27,14 @@ from uc.uc_ast import (
     ParamList,
     Print,
     Program,
+    PtrDecl,
     Read,
     Return,
     Type,
     UnaryOp,
     VarDecl,
     While,
+    represent_node,
 )
 from uc.uc_lexer import UCLexer
 
@@ -60,20 +62,6 @@ class Coord:
 
 
 class UCParser:
-    precedence = (
-        ('left', 'COMMA'),
-        ('right', 'TIMESEQUAL', 'DIVEQUAL', 'MODEQUAL'),
-        ('right', 'PLUSEQUAL', 'MINUSEQUAL'),
-        ('right', 'EQUALS'),
-        ('left', 'OR'),
-        ('left', 'AND'),
-        ('left', 'EQ', 'NE'),
-        ('left', 'GT', 'GE', 'LT', 'LE'),
-        ('left', 'PLUS', 'MINUS'),
-        ('left', 'TIMES', 'DIVIDE', 'MOD'),
-        ('right', 'NOT'),
-    )
-
     def __init__(self, debug=True):
         """Create a new uCParser."""
         self.uclex = UCLexer(self._lexer_error)
@@ -106,14 +94,8 @@ class UCParser:
         last_cr = p.lexer.lexer.lexdata.rfind("\n", 0, p.lexpos(token_idx))
         if last_cr < 0:
             last_cr = -1
-        column = p.lexpos(token_idx) - (last_cr)        
+        column = p.lexpos(token_idx) - (last_cr)
         return Coord(p.lineno(token_idx), column)
-
-    def _build_declaration(self, spec, decl, init=None):
-        return self._fix_decl_name_type(
-            decl=Decl(None, type=decl, init_declarator_list_opt=init, coord=decl.coord),
-            typename=spec
-        )
 
     def _build_declarations(self, spec, decls):
         """Builds a list of declarations all sharing the given specifiers."""
@@ -124,7 +106,7 @@ class UCParser:
             declaration = Decl(
                 name=None,
                 type=decl["decl"],
-                init_declarator_list_opt=decl.get("init"),
+                init=decl.get("init"),
                 coord=decl["decl"].coord,
             )
 
@@ -141,17 +123,13 @@ class UCParser:
             type = type.type
 
         decl.name = type.declname
-
-        if isinstance(decl.type, VarDecl):
-            decl.type.decl = decl
-
         if not typename:
             # Functions default to returning int
             if not isinstance(decl.type, FuncDecl):
                 self._parser_error("Missing type in declaration", decl.coord)
             type.type = Type("int", coord=decl.coord)
         else:
-            type.type = Type(name=typename.name, coord=typename.coord)
+            type.type = Type(typename.name, coord=typename.coord)
 
         return decl
 
@@ -184,467 +162,471 @@ class UCParser:
             decl_tail.type = modifier_head
             return decl
 
+    precedence = (
+        ('left', 'IF'),
+        ('left', 'ELSE'),
+        ('left', 'EQUALS', 'PLUSEQUAL', 'MINUSEQUAL', 'TIMESEQUAL', 'DIVEQUAL', 'MODEQUAL'),
+        ('left', 'OR'),
+        ('left', 'AND'),
+        ('nonassoc', 'LT', 'GT', 'LE', 'GE'),
+        ('left', 'EQ', 'NE'),
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'TIMES', 'DIVIDE', 'MOD'),
+        ('left', 'NOT', 'PLUSPLUS', 'MINUSMINUS'),
+    )
+
     def p_program(self, p):
-        """ program  : global_declaration_list"""
+        """program  : global_declaration_list
+        """
         p[0] = Program(p[1])
+        #p[0].show(showcoord=True)
+        
 
     def p_global_declaration_list(self, p):
-        """global_declaration_list : global_declaration
+        """ global_declaration_list : global_declaration
         | global_declaration_list global_declaration
         """
         p[0] = [p[1]] if len(p) == 2 else p[1] + [p[2]]
 
-    def p_global_declaration_1(self, p):
-        """global_declaration    : declaration"""
-        p[0] = GlobalDecl(p[1])
 
-    def p_global_declaration_2(self, p):
-        """global_declaration    : function_definition"""
+    def p_global_declaration(self, p):
+        """ global_declaration : function_definition
+        """
         p[0] = p[1]
+    def p_global_declaration2(self, p):
+        """global_declaration : declaration
+        """
+        p[0] = GlobalDecl(p[1])
+    def p_global_declaration3(self, p):
+        """ global_declaration : ucomment
+        | unquote 
+        """
+        pass
 
     def p_function_definition(self, p):
-        ''' function_definition : type_specifier declarator declaration_opt_list compound_statement
-                                | empty declarator declaration_opt_list compound_statement
-        '''
-        if p[1] is not None:
-            type_specifier = p[1]
+        """ function_definition : declarator m_declaration compound_statement
+        | type_specifier declarator m_declaration compound_statement
+        """
+        if len(p) == 4:
+            void = Type("void")
+            decl = Decl(None, p[1], None)
+            decl = self._fix_decl_name_type(decl, void)
+            p[0] = FuncDef(void, decl, p[2], p[3])
         else:
-            type_specifier = Type('void', coord=self._token_coord(p, 1))
+            decl = Decl(None, p[2], None)
+            decl = self._fix_decl_name_type(decl, p[1])
+            p[0] = FuncDef(p[1], decl, p[3], p[4])
 
-        declarator = p[2]
-        declaration = self._build_declaration(
-            type_specifier, declarator, init=None)
-        
-        p[0] = FuncDef(
-            type_specifier=type_specifier,
-            declarator=declaration,
-            declaration_opt_list=p[3],
-            compound_statement=p[4],
-            coord=declarator.coord
-        )
-
-    def p_int_const(self, p):
-        ''' int_const : INT_CONST '''
-        p[0] = Constant("int", int(p[1]), coord=self._token_coord(p, 1))
-
-    def p_char_const(self, p):
-        ''' char_const : CHAR_CONST '''
-        p[0] = Constant("char", p[1], coord=self._token_coord(p, 1))
-
-    def p_float_const(self, p):
-        ''' float_const : FLOAT_CONST '''
-        p[0] = Constant("float", float(p[1]), coord=self._token_coord(p, 1))
-
-    def p_string(self, p):
-        ''' string : STRING_LITERAL '''
-        p[0] = Constant("string", p[1], coord=self._token_coord(p, 1))
-
-    def p_identifier(self, p):
-        ''' identifier : ID
-        '''        
-        p[0] = ID(p[1], coord=self._token_coord(p, 1))        
-        p.set_lineno(0, p.lineno(1))          
-
-    def p_identifier_opt_list(self, p):
-        ''' identifier_opt_list : identifier_list
-                                | empty
-        '''
-        p[0] = p[1]
-    
-    def p_identifier_list(self, p):
-        ''' identifier_list : identifier_list COMMA identifier
-                            | identifier
-        '''
-        if len(p) == 2:
-            p[0] = ParamList([p[1]], coord=p[1].coord)
-        else:
-            p[1].parameter_list.append(p[3])
-            p[0] = p[1]
-
-    def p_initializer_list_opt(self, p):
-        ''' initializer_list_opt : initializer_list
-                                 | empty
-        '''
-        p[0] = p[1]
 
     def p_type_specifier(self, p):
-        ''' type_specifier : VOID
-                           | CHAR
-                           | INT
-                           | FLOAT
-        '''
-        p[0] = Type(p[1], coord=self._token_coord(p, 1))
+        """ type_specifier : VOID
+        | CHAR
+        | INT
+        | FLOAT
+         """
+        if p[1] == "void":
+            p[0] = Type("void", self._token_coord(p, 1))
+        elif p[1] == "char":
+            p[0] = Type("char", self._token_coord(p, 1))
+        elif p[1] == "int":
+            p[0] = Type("int", self._token_coord(p, 1))
+        else:
+            p[0] = Type("float", self._token_coord(p, 1))
+
 
     def p_declarator(self, p):
-        ''' declarator : pointer_opt direct_declarator
-        '''
-        if p[1] is None:
-            p[0] = p[2]
+        """ declarator : direct_declarator
+        | pointer direct_declarator
+        """
+        if len(p) == 2:
+            p[0] = p[1]
         else:
-            p[0] = self._type_modify_decl(p[2], p[1])
+            p[0] = PtrDecl(p[1], p[2])
 
-    def p_pointer_opt(self, p):
-        ''' pointer_opt : pointer
-                        | empty
-        '''
+
+    def p_pointer(self, p):
+        """ pointer : TIMES zo_pointer """
         p[0] = p[1]
 
-    def p_pointer(sefl, p):
-        ''' pointer : TIMES pointer_opt
-        '''
-        p[0] = p[2]
 
     def p_direct_declarator(self, p):
-        ''' direct_declarator : identifier
-                              | LPAREN declarator RPAREN
-                              | direct_declarator LBRACKET constant_expression_opt RBRACKET
-                              | direct_declarator LPAREN parameter_list_opt RPAREN
-                              | direct_declarator LPAREN identifier_opt_list RPAREN
-        '''
-        if len(p) == 2:
-            p[0] = VarDecl(p[1], None, coord=p[1].coord)            
-        elif len(p) == 4:
+        """ direct_declarator : ID
+        | LPAREN declarator RPAREN
+        | direct_declarator LPAREN m_identifier RPAREN
+        | direct_declarator LPAREN parameter_list RPAREN
+        | direct_declarator LBRACKET constant_expression RBRACKET
+        | direct_declarator LBRACKET RBRACKET
+        """
+        if len(p) == 2 and p[1] is not None:
+            p[0] = VarDecl(None, ID(p[1], self._token_coord(p, 1)))
+        elif p[1] == "(":
             p[0] = p[2]
-        else:
-            if p[2] == '[':                                 
-                array = ArrayDecl(None, p[1], p[3], coord=p[1].coord)
-                p[0] = self._type_modify_decl(decl=p[1], modifier=array)
+        elif p[2] == "(":
+            if isinstance(p[3], list):
+                p[3] = ParamList(p[3], p[3][0].coord)
+            p[0] = FuncDecl(None, p[3], p[1])
+        elif len(p) == 5:
+            if isinstance(p[1], ArrayDecl):
+                decl = ArrayDecl(p[3], None)
+                p[0] = self._type_modify_decl(p[1], decl)
             else:
-                func = FuncDecl(p[3], None, p[1], coord=p[1].coord)
-                p[0] = self._type_modify_decl(decl=p[1], modifier=func)
+                p[0] = ArrayDecl(p[3], p[1])
+        else:
+            if isinstance(p[1], ArrayDecl):
+                decl = ArrayDecl(None, None)
+                p[0] = self._type_modify_decl(p[1], decl)
+            else:
+                p[0] = ArrayDecl(None, p[1])
 
-    def p_constant_expression_opt(self, p):
-        ''' constant_expression_opt : constant_expression
-                                    | empty
-        '''
-        p[0] = p[1]
+
+    def p_m_identifier(self, p):
+        """ m_identifier : ID
+        | m_identifier COMMA ID
+        | empty
+        """
+        if len(p) == 2 and p[1] is not None:
+            p[0] = [ID(p[1], self._token_coord(p, 1))]
+        elif len(p) == 4 and p[3] is not None:
+            p[0] = p[1] + [ID(p[3], self._token_coord(p, 3))]
+        else:
+            p[0] = None
+
 
     def p_constant_expression(self, p):
-        ''' constant_expression : binary_expression
-        '''
+        """ constant_expression : binary_expression"""
         p[0] = p[1]
 
+
     def p_binary_expression(self, p):
-        ''' binary_expression : cast_expression
-                              | binary_expression TIMES binary_expression
-                              | binary_expression DIVIDE binary_expression
-                              | binary_expression MOD binary_expression
-                              | binary_expression PLUS binary_expression
-                              | binary_expression MINUS binary_expression
-                              | binary_expression LT binary_expression
-                              | binary_expression LE binary_expression
-                              | binary_expression GT binary_expression
-                              | binary_expression GE binary_expression
-                              | binary_expression EQ binary_expression
-                              | binary_expression NE binary_expression
-                              | binary_expression AND binary_expression
-                              | binary_expression OR binary_expression
-        '''
+        """ binary_expression : cast_expression
+        | binary_expression TIMES binary_expression
+        | binary_expression DIVIDE binary_expression
+        | binary_expression MOD binary_expression
+        | binary_expression PLUS binary_expression
+        | binary_expression MINUS binary_expression
+        | binary_expression LT binary_expression
+        | binary_expression LE binary_expression
+        | binary_expression GT binary_expression
+        | binary_expression GE binary_expression
+        | binary_expression EQ binary_expression
+        | binary_expression NE binary_expression
+        | binary_expression AND binary_expression
+        | binary_expression OR binary_expression
+        """
         if len(p) == 2:
             p[0] = p[1]
         else:
-            p[0] = BinaryOp(p[2], p[1], p[3], coord=p[1].coord)
+            p[0] = BinaryOp(p[2], p[1], p[3], p[1].coord)
+
 
     def p_cast_expression(self, p):
-        ''' cast_expression : unary_expression
-                            | LPAREN type_specifier RPAREN cast_expression
-        '''
+        """ cast_expression : unary_expression
+        | LPAREN type_specifier RPAREN cast_expression
+        """
         if len(p) == 2:
             p[0] = p[1]
         else:
-            p[0] = Cast(p[2], p[4], coord=self._token_coord(p, 1))
+            p[0] = Cast(p[2], p[4], self._token_coord(p, 1))
+
 
     def p_unary_expression(self, p):
-        ''' unary_expression : postfix_expression
-                             | PLUSPLUS unary_expression
-                             | MINUSMINUS unary_expression
-                             | unary_operator cast_expression
-        '''
+        """ unary_expression : postfix_expression
+        | PLUSPLUS unary_expression
+        | MINUSMINUS unary_expression
+        | unary_operator cast_expression
+        """
         if len(p) == 2:
             p[0] = p[1]
         else:
-            p[0] = UnaryOp(p[1], p[2], coord=p[2].coord)
+            p[0] = UnaryOp(p[1], p[2], p[2].coord)
+
 
     def p_postfix_expression(self, p):
-        ''' postfix_expression : primary_expression
-                               | postfix_expression LBRACKET expression_opt RBRACKET
-                               | postfix_expression LPAREN argument_expression_opt RPAREN
-                               | postfix_expression PLUSPLUS
-                               | postfix_expression MINUSMINUS
-        '''
+        """ postfix_expression : primary_expression
+        | postfix_expression LBRACKET expression RBRACKET
+        | postfix_expression LPAREN expression RPAREN
+        | postfix_expression LPAREN RPAREN
+        | postfix_expression PLUSPLUS
+        | postfix_expression MINUSMINUS
+        """
         if len(p) == 2:
             p[0] = p[1]
+
+        elif len(p) == 5 and p[2] == "(":
+            if not isinstance(p[3], ExprList):
+                if isinstance(p[3], list) and len(p[3]) > 1:
+                    p[3] = ExprList(p[3], p[3][0].coord)
+                elif isinstance(p[3], list):
+                    p[3] = p[3][0]
+            p[0] = FuncCall(p[1], p[3], p[1].coord)
+
+        elif len(p) == 4 and p[2] == "(":
+            p[0] = FuncCall(p[1], None, p[1].coord)
+
         elif len(p) == 5:
-            if p[2] == '[':
-                p[0] = ArrayRef(p[1], p[3], coord=p[1].coord)
-            else:
-                p[0] = FuncCall(p[1], p[3], coord=p[1].coord)
+            p[0] = ArrayRef(p[1], p[3], p[1].coord)
+
+        # elif len(p) == 4:
+        #     p[0] = ArrayRef(p[1], None, p[1].coord)
+
         else:
-            p[0] = UnaryOp('p' + p[2], p[1], coord=p[1].coord)
+            p[0] = UnaryOp("p"+p[2], p[1], coord=p[1].coord)
+
 
     def p_primary_expression(self, p):
-        ''' primary_expression : identifier
-                               | constant
-                               | string
-                               | LPAREN expression RPAREN
-        '''
+        """ primary_expression : constant
+        | LPAREN expression RPAREN
+        """
         if len(p) == 2:
             p[0] = p[1]
         else:
             p[0] = p[2]
+    def p_primary_expression2(self, p):
+        """ primary_expression : ID """
+        p[0] = ID(p[1], self._token_coord(p, 1))
+    def p_primary_expression3(self, p):
+        """ primary_expression : STRING_LITERAL """
+        p[0] = Constant("string", p[1], self._token_coord(p, 1))
+
 
     def p_constant(self, p):
-        ''' constant : int_const
-                     | char_const
-                     | float_const
-        '''
-        p[0] = p[1]
+        """ constant : CHAR_CONST """
+        p[0] = Constant("char", p[1], self._token_coord(p, 1))
+    def p_constant2(self, p):
+        """ constant : INT_CONST """
+        p[0] = Constant("int", p[1], self._token_coord(p, 1))
+    def p_constant3(self, p):
+        """ constant : FLOAT_CONST """
+        p[0] = Constant("float", p[1], self._token_coord(p, 1))
+
 
     def p_expression(self, p):
-        ''' expression : assignment_expression
-                       | expression COMMA assignment_expression
-        '''
-
+        """ expression : assigment_expression
+        | expression COMMA assigment_expression
+        """
         if len(p) == 2:
             p[0] = p[1]
         else:
             if not isinstance(p[1], ExprList):
-                p[1] = ExprList([p[1]], coord=p[1].coord)
-
-            p[1].expression_list.append(p[3])
+                p[1] = ExprList([p[1]], p[1].coord)
+                
+            p[1].exprs.append(p[3])
             p[0] = p[1]
 
-    def p_argument_expression_opt(self, p):
-        ''' argument_expression_opt : argument_expression
-                                    | empty
-        '''
-        p[0] = p[1]
 
-    def p_argument_expression(self, p):
-        ''' argument_expression : assignment_expression
-                                | argument_expression COMMA assignment_expression
-        '''
+    def p_assigment_expression(self, p):
+        """ assigment_expression : binary_expression
+        | unary_expression assigment_operator assigment_expression """
         if len(p) == 2:
             p[0] = p[1]
         else:
-            if not isinstance(p[1], ExprList):
-                p[1] = ExprList([p[1]], coord=p[1].coord)
-            p[1].expression_list.append(p[3])
-            p[0] = p[1]
-        
-    def p_assignment_expression(self, p):
-        ''' assignment_expression : binary_expression
-                                  | unary_expression assignment_operator assignment_expression
-        '''
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            assignment_operator = str(p[2])
-            if assignment_operator == "=":
-                p[0] = Assignment(p[2], p[1], p[3], coord=p[1].coord)
-            else:
-                binary_operator = assignment_operator.split("=")[0]
-                p[0] = Assignment("=", p[1], BinaryOp(binary_operator, p[1], p[3]))
+            p[0] = Assignment(p[2], p[1], p[3], p[1].coord)
 
-    def p_assignment_operator(self, p):
-        ''' assignment_operator : EQUALS
-                                | TIMESEQUAL
-                                | DIVEQUAL
-                                | MODEQUAL
-                                | PLUSEQUAL
-                                | MINUSEQUAL
-        '''
+
+    def p_assigment_operator(self, p):
+        """ assigment_operator : EQUALS
+        | TIMESEQUAL
+        | DIVEQUAL
+        | MODEQUAL
+        | PLUSEQUAL
+        | MINUSEQUAL
+        """
         p[0] = p[1]
+
 
     def p_unary_operator(self, p):
-        ''' unary_operator : UNARY_AND
-                           | TIMES
-                           | PLUS
-                           | MINUS
-                           | NOT
-        '''
+        """ unary_operator : UAND
+        | TIMES
+        | PLUS
+        | MINUS
+        | NOT
+        """
         p[0] = p[1]
 
-    def p_parameter_list_opt(self, p):
-        ''' parameter_list_opt : parameter_list
-                               | empty
-        '''
-        p[0] = p[1]
 
     def p_parameter_list(self, p):
-        ''' parameter_list : parameter_declaration
-                           | parameter_list COMMA parameter_declaration
-        '''
-        if len(p) == 2:
-            p[0] = ParamList([p[1]], coord=p[1].coord)
-        else:
-            p[1].parameter_list.append(p[3])
-            p[0] = p[1]
-
-    def p_parameter_declaration(self, p):
-        ''' parameter_declaration : type_specifier declarator
-        '''
-        p[0] = self._build_declaration(spec=p[1], decl=p[2], init=None)        
-
-    def p_declaration(self, p):
-        ''' declaration : type_specifier init_declarator_list_opt SEMI
-        '''
-        declaration_list = p[2] or []
-        p[0] = self._build_declarations(spec=p[1], decls=declaration_list)
-
-    def p_init_declarator_list_opt(self, p):
-        ''' init_declarator_list_opt : init_declarator_list
-                                     | empty
-        '''
-        p[0] = p[1]
-
-    def p_init_declarator_list(self, p):
-        ''' init_declarator_list : init_declarator
-                                 | init_declarator_list COMMA init_declarator
-        '''
+        """ parameter_list : parameter_declaration
+        | parameter_list COMMA parameter_declaration """
         if len(p) == 2:
             p[0] = [p[1]]
         else:
             p[0] = p[1] + [p[3]]
 
-    def p_init_declarator(self, p):
-        ''' init_declarator : declarator
-                            | declarator EQUALS initializer
-        '''
-        if len(p) == 2:
-            p[0] = dict(decl=p[1], init=None)
+
+    def p_parameter_declaration(self, p):
+        """ parameter_declaration : type_specifier declarator """
+        p[2] = Decl(None, p[2], None)
+        p[0] = self._fix_decl_name_type(p[2], p[1])
+
+
+    def p_declaration(self, p):
+        """ declaration : type_specifier init_declarator_list SEMI
+        | type_specifier SEMI
+        """
+        if len(p) == 4:
+            p[0] = self._build_declarations(p[1], p[2])
         else:
-            p[0] = dict(decl=p[1], init=p[3])
+            print("invalid declaration?")
+
+
+    def p_init_declarator_list(self, p):
+        """ init_declarator_list : init_declarator
+        | init_declarator_list COMMA init_declarator
+        """
+        if len(p) == 2:
+            p[0] = [p[1]]
+        else:
+            p[0] = p[1] + [p[3]]
+
+
+    def p_init_declarator(self, p):
+        """ init_declarator : declarator
+        | declarator EQUALS initializer
+        """
+        if len(p) == 2:
+            p[0] = {"decl": p[1], "init": None}
+        else:
+            p[0] = {"decl": p[1], "init": p[3]}
+
 
     def p_initializer(self, p):
-        ''' initializer : assignment_expression
-                        | LBRACE initializer_list_opt RBRACE
-                        | LBRACE initializer_list COMMA RBRACE
-        '''
+        """ initializer : assigment_expression
+        | LBRACE RBRACE
+        | LBRACE initializer_list RBRACE
+        | LBRACE initializer_list COMMA RBRACE
+        """
         if len(p) == 2:
             p[0] = p[1]
-        elif p[2] is None:
-            p[0] = EmptyStatement(coord=self._token_coord(p, 1))
+        elif len(p) == 3:
+            p[0] = InitList(None, self._token_coord(p, 1))
         else:
-            p[0] = p[2]
+            p[0] = InitList(p[2], self._token_coord(p, 1))
+
 
     def p_initializer_list(self, p):
-        ''' initializer_list : initializer
-                             | initializer_list COMMA initializer
-        '''
+        """ initializer_list : initializer
+        | initializer_list COMMA initializer
+        """
         if len(p) == 2:
-            p[0] = InitList([p[1]], coord=p[1].coord)
+            p[0] = [p[1]]
         else:
-            if not isinstance(p[1], InitList):
-                p[1] = InitList([p[1]], coord=p[1].coord)
-            p[1].declarator_list.append(p[3])
-            p[0] = p[1]
+            p[0] = p[1] + [p[3]]
 
-    def p_compound_statement(self, p):
-        ''' compound_statement : LBRACE declaration_opt_list statement_opt_list RBRACE
-        '''
-        p[0] = Compound(p[2], p[3], coord=self._token_coord(p, 1))
+
+    def p_compund_statement(self, p):
+        """ compound_statement : LBRACE m_declaration m_statement RBRACE"""
+        p[0] = Compound(p[2], p[3], self._token_coord(p, 1))
+
 
     def p_statement(self, p):
-        ''' statement : expression_statement
-                      | compound_statement
-                      | selection_statement
-                      | iteration_statement
-                      | jump_statement
-                      | assert_statement
-                      | print_statement
-                      | read_statement
-        '''
+        """ statement : expression_statement
+        | compound_statement
+        | selection_statement
+        | iteration_statement
+        | jump_statement
+        | assert_statement
+        | print_statement
+        | read_statement
+        """
         p[0] = p[1]
 
+
     def p_expression_statement(self, p):
-        ''' expression_statement : expression_opt SEMI
-        '''
-        if p[1] is None:
-            p[0] = EmptyStatement(coord=self._token_coord(p, 2))
-        else:
-            p[0] = p[1]
+        """ expression_statement : zo_expression SEMI"""
+        p[0] = p[1]
+
 
     def p_selection_statement(self, p):
-        ''' selection_statement : IF LPAREN expression RPAREN statement
-                                | IF LPAREN expression RPAREN statement ELSE statement
-        '''
+        """ selection_statement : IF LPAREN expression RPAREN statement ELSE statement
+        | IF LPAREN expression RPAREN statement
+        """
         if len(p) == 6:
-            p[0] = If(p[3], p[5], None, coord=self._token_coord(p, 1))
+            p[0] = If(p[3], p[5], coord=self._token_coord(p, 1))
         else:
             p[0] = If(p[3], p[5], p[7], coord=self._token_coord(p, 1))
 
+
     def p_iteration_statement(self, p):
-        ''' iteration_statement : WHILE LPAREN expression RPAREN statement
-                                | FOR LPAREN expression_opt SEMI expression_opt SEMI expression_opt RPAREN statement
-                                | FOR LPAREN declaration expression_opt SEMI expression_opt RPAREN statement
-        '''
+        """ iteration_statement : WHILE LPAREN expression RPAREN statement
+        | FOR LPAREN expression_statement expression_statement zo_expression RPAREN statement
+        """
         if len(p) == 6:
-            p[0] = While(p[3], p[5], coord=self._token_coord(p, 1))
-        elif len(p) == 10:
-            p[0] = For(p[3], p[5], p[7], p[9], coord=self._token_coord(p, 1))
+            p[0] = While(p[3], p[5], self._token_coord(p, 1))
         else:
-            p[0] = For(DeclList(p[3], coord=self._token_coord(p, 1)), p[4], p[6], p[8], coord=self._token_coord(p, 1))
+            p[0] = For(p[3], p[4], p[5], p[7], self._token_coord(p, 1))
+    def p_iteration_statement2(self, p):
+        """ iteration_statement : FOR LPAREN declaration expression_statement zo_expression RPAREN statement """
+        p[0] = For(DeclList(p[3], self._token_coord(p, 1)), p[4], p[5], p[7], self._token_coord(p, 1))
+
 
     def p_jump_statement(self, p):
-        ''' jump_statement : BREAK SEMI
-                           | RETURN constant_expression_opt SEMI
-                           | RETURN identifier SEMI
-        '''
-        if len(p) == 3:
-            p[0] = Break(coord=self._token_coord(p, 1))
-        else:
-            p[0] = Return(p[2], coord=self._token_coord(p, 1))
+        """ jump_statement : BREAK SEMI """
+        p[0] = Break(self._token_coord(p, 1))
+    def p_jump_statement2(self, p):
+        """ jump_statement : RETURN expression_statement """
+        p[0] = Return(p[2], self._token_coord(p, 1))
 
     def p_assert_statement(self, p):
-        ''' assert_statement : ASSERT expression SEMI
-        '''
-        p[0] = Assert(p[2], coord=self._token_coord(p, 1))
+        """ assert_statement : ASSERT expression SEMI """
+        p[0] = Assert(p[2], self._token_coord(p, 1))
+
 
     def p_print_statement(self, p):
-        ''' print_statement : PRINT LPAREN expression_opt RPAREN SEMI
-        '''
-        p[0] = Print(p[3], coord=self._token_coord(p, 1))
-        
+        """ print_statement : PRINT LPAREN expression RPAREN SEMI 
+        | PRINT LPAREN RPAREN SEMI
+        """
+        if len(p) == 6:
+            p[0] = Print(p[3], self._token_coord(p, 1))
+        else:
+            p[0] = Print(None, self._token_coord(p, 1))
+
+
     def p_read_statement(self, p):
-        ''' read_statement : READ LPAREN argument_expression RPAREN SEMI
-        '''
-        p[0] = Read(p[3], coord=self._token_coord(p, 1))
+        """ read_statement : READ LPAREN expression RPAREN SEMI """
+        p[0] = Read(p[3], self._token_coord(p, 1))
 
-    def p_statement_opt_list(self, p):
-        ''' statement_opt_list : statement_list
-                               | empty
-        '''
-        p[0] = p[1]
-
-    def p_statement_list(self, p):
-        ''' statement_list : statement_list statement
-                           | statement
-        '''
-        p[0] = [p[1]] if len(p) == 2 else p[1] + [p[2]]
-
-    def p_declaration_opt_list(self, p):
-        ''' declaration_opt_list : declaration_list
-                                 | empty
-        '''
-        p[0] = p[1]
-
-    def p_declaration_list(self, p):
-        ''' declaration_list : declaration
-                             | declaration_list declaration
-        '''
-        p[0] = p[1] if len(p) == 2 else p[1] + p[2]
-
-    def p_expression_opt(self, p):
-        ''' expression_opt : expression
-                           | empty
-        '''
-        p[0] = p[1]
 
     def p_empty(self, p):
-        ''' empty :
-        '''
-        p[0] = None
+        """ empty : 
+        """
+        pass
+
+    def p_zo_expression(self, p):
+        """ zo_expression : expression
+        | empty
+        """
+        p[0] = p[1]
+
+
+    def p_zo_pointer(self, p):
+        """ zo_pointer : pointer
+        | empty
+        """
+        p[0] = p[1]
+
+
+    def p_m_declaration(self, p):
+        """ m_declaration : declaration
+        | m_declaration declaration
+        | empty
+        """
+        # declaration já é list
+        if len(p) == 2:
+            p[0] = p[1]
+        elif len(p) == 3:
+            p[0] = p[1] + p[2]
+        
+
+    def p_m_statement(self, p):
+        """ m_statement : statement
+        | m_statement statement
+        | empty
+        """
+        if len(p) == 2:
+            p[0] = [p[1]]
+        else:
+            p[0] = p[1] + [p[2]]
+
 
     def p_error(self, p):
         if p:
@@ -679,7 +661,3 @@ if __name__ == "__main__":
     # open file and print tokens
     with open(input_path) as f:
         p.parse(f.read())
-
-    with open(input_path) as f:
-        ast = p.parse(f.read())
-        ast.show(showcoord=True)

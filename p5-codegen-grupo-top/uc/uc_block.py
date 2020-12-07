@@ -1,5 +1,7 @@
-from graphviz import Digraph
+import os
+os.environ["PATH"] += os.pathsep + 'D:\\Bibliotecas\\graphviz-2.44.1-win32\\Graphviz\\bin'
 
+from graphviz import Digraph
 
 def format_instruction(t):
     operand = t[0].split("_")
@@ -57,9 +59,6 @@ class Block:
         self.predecessors = []  # List of predecessors
         self.next_block = None  # Link to the next block
 
-    def insert(self, index, instr):
-        self.instructions.insert(index, instr)
-
     def append(self, instr):
         self.instructions.append(instr)
 
@@ -89,29 +88,13 @@ class ConditionBlock(Block):
         self.taken = None
         self.fall_through = None
 
-
-class UnconditionBlock(Block):
-    """
-    Class for a block representing an unconditional statement.
-    There is one branche to handle it.
-    """
-
-    def __init__(self, label):
-        super(UnconditionBlock, self).__init__(label)
-        self.target = None
-
 class BlockVisitor(object):
-    """
-    Class for visiting blocks (similar to ASTs).
-    """
-
     def visit(self, block):
         while isinstance(block, Block):
             name = "visit_%s" % type(block).__name__
             if hasattr(self, name):
                 getattr(self, name)(block)
             block = block.next_block
-
 
 class EmitBlocks(BlockVisitor):
     def __init__(self):
@@ -123,7 +106,8 @@ class EmitBlocks(BlockVisitor):
 
     def visit_ConditionBlock(self, block):
         for inst in block.instructions:
-            self.code.append(inst)  
+            self.code.append(inst)
+
 
 class CFG:
     def __init__(self, fname):
@@ -166,5 +150,5 @@ class CFG:
                 getattr(self, name)(block)
             block = block.next_block
         # You can use the next stmt to see the dot file
-        # print(self.g.source)
+        #print(self.g.source)
         self.g.view()

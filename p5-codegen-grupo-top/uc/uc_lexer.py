@@ -2,7 +2,7 @@ import argparse
 import pathlib
 import sys
 import ply.lex as lex
-import re
+
 
 class UCLexer:
     """A lexer for the uC language. After building it, set the
@@ -81,45 +81,50 @@ class UCLexer:
     # All the tokens recognized by the lexer
     #
     tokens = keywords + (
-        # Identifiers
-        "ID",
         # constants
         "INT_CONST",
         "FLOAT_CONST",
-        "CHAR_CONST",
+        # operations
+        "EQ",
+        "LE",
+        "LT",
+        "GE",
+        "GT",
+        "EQUALS",
+        "MINUSEQUAL",
+        "PLUSEQUAL",
+        "MINUSMINUS",
+        "PLUSPLUS",
+        "TIMESEQUAL",
+        "DIVEQUAL",
+        "MODEQUAL",
+        "PLUS",
+        "MINUS",
+        "TIMES",
+        "DIVIDE",
+        "NE",
+        "NOT",
+        "MOD",
+        "OR",
+        "AND",
+        "UAND",
+        # separators and delimiters
+        "LPAREN",
+        "RPAREN",
+        "LBRACE",
+        "RBRACE",
+        "LBRACKET",
+        "RBRACKET",
+        "SEMI",
+        "COMMA",
+        # comments
+        "ucomment",
+        # strings
         "STRING_LITERAL",
-        # Operators and Delimiters:
-        'NOT',
-        'OR',
-        'AND',
-        'UNARY_AND',
-        'EQ',
-        'EQUALS',
-        'DIVIDE',
-        'TIMES',
-        'NE',
-        'LE',
-        'GE',
-        'LT',
-        'GT',
-        'PLUSPLUS',
-        'DIVEQUAL',
-        'PLUSEQUAL',
-        'MINUSEQUAL',
-        'TIMESEQUAL',
-        'MODEQUAL',
-        'MINUSMINUS',
-        'PLUS',
-        'MINUS',
-        'MOD',
-        'LPAREN',
-        'RPAREN',
-        'LBRACE',
-        'RBRACE',
-        'LBRACKET',
-        'RBRACKET',
-        'SEMI',
-        'COMMA',
+        "unquote",
+        "CHAR_CONST",
+        # Identifiers
+        "ID"
     )
 
     #
@@ -127,200 +132,76 @@ class UCLexer:
     #
     t_ignore = " \t"
 
+    t_INT_CONST = r"[0-9]+"
+
+    t_FLOAT_CONST = r"[0-9]+\.[0-9]*|[0-9]*\.[0-9]+"
+
+    t_EQ = r"=="
+    t_LE = r"\<="
+    t_LT = r"\<"
+    t_GE = r"\>="
+    t_GT = r"\>"
+    t_EQUALS  = r"="
+    t_MINUSEQUAL = r"\-="
+    t_PLUSEQUAL = r"\+="
+    t_MINUSMINUS = r"\-\-"
+    t_PLUSPLUS = r"\+\+"
+    t_TIMESEQUAL = r"\*="
+    t_DIVEQUAL = r"/="
+    t_MODEQUAL = r"\%="
+    t_PLUS    = r"\+"
+    t_MINUS   = r"-"
+    t_TIMES   = r"\*"
+    t_DIVIDE  = r"/"
+    t_NE = r"!="
+    t_NOT = r"!"
+    t_MOD = r"\%"
+    t_OR = r"\|\|"
+    t_AND = r"\&\&"
+    t_UAND = r"\&"
+
+    t_LPAREN  = r"\("
+    t_RPAREN  = r"\)"
+    t_LBRACE = r"\{"
+    t_RBRACE = r"\}"
+    t_LBRACKET = r"\["
+    t_RBRACKET = r"\]"
+    t_SEMI = r"\;"
+    t_COMMA = r","
+
+    def t_STRING_LITERAL(self, t):
+        r"\"[^\"][^\"]+\"|\'[^\'][^\']+\'|\"\s\"|\'\s\'"
+        t.value = t.value[1:len(t.value)-1]
+        return t
+
+    t_CHAR_CONST = r"\"[a-zA-Z]\"|\'[a-zA-Z]\'"
+
     # Newlines
     def t_NEWLINE(self, t):
-        r'(\n)'
+        # include a regex here for newline
+        r"\n+"
         t.lexer.lineno += t.value.count("\n")
-
-    def t_comment(self, t):
-        r'(\/\*(((.)|(\n))*?)\*\/)|(\/\/(.*?)\n)'
-        t.lexer.lineno += t.value.count("\n")
-
-    def t_unterminated_comment_error(self, t):
-        r'\/\*((.)|(\n))*'
-        t.lexer.lineno += t.value.count("\n")
-        self._error('Unterminated comment', t)
 
     def t_ID(self, t):
-        r'([a-zA-Z]|(_))(([a-zA-Z0-9]|(_))*)'
+        # include a regex here for ID
+        r"[a-zA-Z_][a-zA-Z0-9_]*"
         t.type = self.keyword_map.get(t.value, "ID")
         return t
 
-    def t_OR(self, t):
-        r'(\|\|)'
-        t.type = 'OR'
-        return t
+    def t_comment(self, t):
+        # include a regex here for comment
+        r"\/\/.*|/\*[^*]*\*+(?:[^/*][^*]*\*+)*/"
+        t.lexer.lineno += t.value.count("\n")
 
-    def t_AND(self, t):
-        r'(&&)'
-        t.type = 'AND'
-        return t
+    def t_ucomment(self, t):
+        r"/\*[^*]*"
+        msg = "Unterminated comment"
+        self._error(msg, t)
 
-    def t_LE(self, t):
-        r'(<=)'
-        t.type = 'LE'
-        return t
-
-    def t_GE(self, t):
-        r'(>=)'
-        t.type = 'GE'
-        return t
-
-    def t_DIVEQUAL(self, t):
-        r'(\/=)'
-        t.type = 'DIVEQUAL'
-        return t
-
-    def t_PLUSEQUAL(self, t):
-        r'(\+=)'
-        t.type = 'PLUSEQUAL'
-        return t
-
-    def t_MINUSEQUAL(self, t):
-        r'(\-=)'
-        t.type = 'MINUSEQUAL'
-        return t
-
-    def t_TIMESEQUAL(self, t):
-        r'(\*=)'
-        t.type = 'TIMESEQUAL'
-        return t
-
-    def t_MODEQUAL(self, t):
-        r'(%=)'
-        t.type = 'MODEQUAL'
-        return t
-
-    def t_PLUSPLUS(self, t):
-        r'(\+\+)'
-        t.type = 'PLUSPLUS'
-        return t
-
-    def t_MINUSMINUS(self, t):
-        r'(--)'
-        t.type = 'MINUSMINUS'
-        return t
-
-    def t_PLUS(self, t):
-        r'(\+)'
-        t.type = 'PLUS'
-        return t
-
-    def t_MINUS(self, t):
-        r'(-)'
-        t.type = 'MINUS'
-        return t
-
-    def t_EQ(self, t):
-        r'(==)'
-        t.type = 'EQ'
-        return t
-
-    def t_LT(self, t):
-        r'(<)'
-        t.type = 'LT'
-        return t
-
-    def t_GT(self, t):
-        r'(>)'
-        t.type = 'GT'
-        return t
-
-    def t_EQUALS(self, t):
-        r'(=)'
-        t.type = 'EQUALS'
-        return t
-
-    def t_UNARY_AND(self, t):
-        r'(&)'
-        t.type = 'UNARY_AND'
-        return t
-
-    def t_NE(self, t):
-        r'(!=)'
-        t.type = 'NE'
-        return t
-
-    def t_NOT(self, t):
-        r'(!)'
-        t.type = 'NOT'
-        return t
-
-    def t_DIVIDE(self, t):
-        r'(\/)'
-        t.type = 'DIVIDE'
-        return t
-
-    def t_TIMES(self, t):
-        r"(\*)"
-        t.type = 'TIMES'
-        return t
-
-    def t_MOD(self, t):
-        r'(%)'
-        t.type = 'MOD'
-        return t
-
-    def t_SEMI(self, t):
-        r'(;)'
-        t.type = "SEMI"
-        return t
-
-    def t_COMMA(self, t):
-        r'(,)'
-        t.type = 'COMMA'
-        return t
-
-    def t_LPAREN(self, t):
-        r"(\()"
-        t.type = 'LPAREN'
-        return t
-
-    def t_RPAREN(self, t):
-        r"(\))"
-        t.type = 'RPAREN'
-        return t
-
-    def t_LBRACE(self, t):
-        r"({)"
-        t.type = 'LBRACE'
-        return t
-
-    def t_RBRACE(self, t):
-        r"(})"
-        t.type = 'RBRACE'
-        return t
-
-    def t_LBRACKET(self, t):
-        r"(\[)"
-        t.type = "LBRACKET"
-        return t
-
-    def t_RBRACKET(self, t):
-        r"(\])"
-        t.type = "RBRACKET"
-        return t
-
-    def t_FLOAT_CONST(self, t):
-        r"(([0-9]*)\.([0-9]+))|(([0-9]+)\.([0-9]*))"
-        t.type = "FLOAT_CONST"
-        return t
-
-    def t_INT_CONST(self, t):
-        r"([0-9]+)"
-        t.type = "INT_CONST"
-        return t
-
-    def t_CHAR_CONST(self, t):
-        r"('(.)')"
-        t.type = "CHAR_CONST"
-        return t
-
-    def t_STRING_LITERAL(self, t):
-        r'"(.*?)"'
-        t.type = "STRING_LITERAL"
-        t.value = re.findall(r'"(.*?)"', t.value)[0]
-        return t
+    def t_unquote(self, t):
+        r"^\".*|^\'.*|.*\"$|.*\'$"
+        msg = "Unterminated quote"
+        self._error(msg, t)
 
     def t_error(self, t):
         msg = "Illegal character %s" % repr(t.value[0])
